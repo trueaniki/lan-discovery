@@ -24,7 +24,10 @@ func ListenForDiscover() (net.Conn, error) {
 		return nil, fmt.Errorf("error resolving UDP address: %v", err)
 	}
 
-	pc, err := net.ListenPacket("udp4", udpAddr.String())
+	pc, err := net.ListenPacket("udp4", ":"+CONN_PORT)
+	if err != nil {
+		return nil, fmt.Errorf("error setting up UDP listener: %v", err)
+	}
 
 	// udpConn, err := net.ListenUDP("udp", udpAddr)
 	// if err != nil {
