@@ -106,6 +106,7 @@ func Discover() (net.Conn, error) {
 				if err != nil {
 					fmt.Printf("error sending discovery message: %v\n", err)
 				}
+				fmt.Println("Sent discovery message to ", broadcastAddr)
 				time.Sleep(500 * time.Millisecond)
 			}
 		}
