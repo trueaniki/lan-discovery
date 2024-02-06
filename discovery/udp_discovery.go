@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	CONN_PORT = "38747"
+	SERVER_PORT = "38747"
+	CLIENT_PORT = "38748"
 
 	DISCOVER = "DISCOVER"
 	READY    = "READY"
@@ -19,12 +20,12 @@ func ListenForDiscover() (net.Conn, error) {
 		return nil, fmt.Errorf("error getting LAN network: %v", err)
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp", GetMyIp(lan)+":"+CONN_PORT)
+	udpAddr, err := net.ResolveUDPAddr("udp", GetMyIp(lan)+":"+SERVER_PORT)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving UDP address: %v", err)
 	}
 
-	pc, err := net.ListenPacket("udp4", ":"+CONN_PORT)
+	pc, err := net.ListenPacket("udp4", ":"+SERVER_PORT)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up UDP listener: %v", err)
 	}
@@ -78,12 +79,12 @@ func Discover() (net.Conn, error) {
 		return nil, fmt.Errorf("error getting LAN network: %v", err)
 	}
 
-	broadcastAddr, err := net.ResolveUDPAddr("udp", GetBroadcastIp(lan)+":"+CONN_PORT)
+	broadcastAddr, err := net.ResolveUDPAddr("udp", GetBroadcastIp(lan)+":"+SERVER_PORT)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving remote address: %v", err)
 	}
 
-	localUdpAddr, err := net.ResolveUDPAddr("udp", GetMyIp(lan)+":"+"0")
+	localUdpAddr, err := net.ResolveUDPAddr("udp", GetMyIp(lan)+":"+CLIENT_PORT)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving local address: %v", err)
 	}
