@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"lan-discovery/discovery"
+
+	"github.com/trueaniki/lan-discovery/discovery"
 )
 
 func main() {
-	conn, err := discovery.ListenForDiscover()
+	conn, err := discovery.ListenForDiscover(nil)
 	if err != nil {
 		panic(err)
 	}

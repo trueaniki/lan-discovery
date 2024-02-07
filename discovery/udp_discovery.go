@@ -14,7 +14,42 @@ const (
 	READY    = "READY"
 )
 
-func ListenForDiscover() (net.Conn, error) {
+func RunDiscovery() (net.Conn, error) {
+	doneChan := make(chan net.Conn)
+	abortChan := make(chan struct{})
+	errChan := make(chan error)
+
+	go func() {
+		conn, err := ListenForDiscover(abortChan)
+		if err != nil {
+			errChan <- err
+		} else {
+			doneChan <- conn
+		}
+	}()
+
+	go func() {
+		conn, err := Discover()
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			abortChan <- struct{}{}
+		} else if err != nil {
+			errChan <- err
+		} else {
+			doneChan <- conn
+		}
+	}()
+
+	select {
+	case conn := <-doneChan:
+		abortChan <- struct{}{}
+		return conn, nil
+	case err := <-errChan:
+		abortChan <- struct{}{}
+		return nil, err
+	}
+}
+
+func ListenForDiscover(abortCh chan struct{}) (net.Conn, error) {
 	lan, err := GetLanNetwork()
 	if err != nil {
 		return nil, fmt.Errorf("error getting LAN network: %v", err)
@@ -30,46 +65,45 @@ func ListenForDiscover() (net.Conn, error) {
 		return nil, fmt.Errorf("error setting up UDP listener: %v", err)
 	}
 
-	// udpConn, err := net.ListenUDP("udp", udpAddr)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error setting up UDP listener: %v", err)
-	// }
-	// defer udpConn.Close()
-
 	buf := make([]byte, 32)
 
 	for {
-		// Expecting DISCOVER message
-		n, remoteUdpAddr, err := pc.ReadFrom(buf)
-		fmt.Println("Received ", string(buf[:n]), " from ", remoteUdpAddr)
-		if err != nil {
-			return nil, fmt.Errorf("error reading from UDP connection: %v", err)
-		}
-		if string(buf[:n]) != DISCOVER {
-			continue
-		}
+		select {
+		case <-abortCh:
+			return nil, nil
+		default:
+			// Expecting DISCOVER message
+			n, remoteUdpAddr, err := pc.ReadFrom(buf)
+			fmt.Println("Received ", string(buf[:n]), " from ", remoteUdpAddr)
+			if err != nil {
+				return nil, fmt.Errorf("error reading from UDP connection: %v", err)
+			}
+			if string(buf[:n]) != DISCOVER {
+				continue
+			}
 
-		// Send a response over TCP
-		tcpAddr, err := net.ResolveTCPAddr("tcp", udpAddr.String())
-		if err != nil {
-			return nil, fmt.Errorf("error resolving TCP address: %v", err)
-		}
+			// Send a response over TCP
+			tcpAddr, err := net.ResolveTCPAddr("tcp", udpAddr.String())
+			if err != nil {
+				return nil, fmt.Errorf("error resolving TCP address: %v", err)
+			}
 
-		remoteTcpAddr, err := net.ResolveTCPAddr("tcp", remoteUdpAddr.String())
-		if err != nil {
-			return nil, fmt.Errorf("error resolving remote TCP address: %v", err)
-		}
+			remoteTcpAddr, err := net.ResolveTCPAddr("tcp", remoteUdpAddr.String())
+			if err != nil {
+				return nil, fmt.Errorf("error resolving remote TCP address: %v", err)
+			}
 
-		tcpConn, err := net.DialTCP("tcp", tcpAddr, remoteTcpAddr)
-		if err != nil {
-			return nil, fmt.Errorf("error setting up TCP connection: %v", err)
-		}
-		_, err = tcpConn.Write([]byte(READY))
-		if err != nil {
-			return nil, fmt.Errorf("error sending READY message: %v", err)
-		}
+			tcpConn, err := net.DialTCP("tcp", tcpAddr, remoteTcpAddr)
+			if err != nil {
+				return nil, fmt.Errorf("error setting up TCP connection: %v", err)
+			}
+			_, err = tcpConn.Write([]byte(READY))
+			if err != nil {
+				return nil, fmt.Errorf("error sending READY message: %v", err)
+			}
 
-		return tcpConn, nil
+			return tcpConn, nil
+		}
 	}
 }
 
