@@ -3,6 +3,7 @@ package discovery
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -64,6 +65,7 @@ func ListenForDiscover(abortCh chan struct{}) (net.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error setting up UDP listener: %v", err)
 	}
+	defer pc.Close()
 
 	buf := make([]byte, 32)
 
@@ -74,13 +76,16 @@ func ListenForDiscover(abortCh chan struct{}) (net.Conn, error) {
 		default:
 			// Expecting DISCOVER message
 			n, remoteUdpAddr, err := pc.ReadFrom(buf)
-			fmt.Println("Received ", string(buf[:n]), " from ", remoteUdpAddr)
 			if err != nil {
 				return nil, fmt.Errorf("error reading from UDP connection: %v", err)
 			}
 			if string(buf[:n]) != DISCOVER {
 				continue
 			}
+			if strings.Split(remoteUdpAddr.String(), ":")[0] == GetMyIp(lan) {
+				continue
+			}
+			fmt.Println("Received ", string(buf[:n]), " from ", remoteUdpAddr)
 
 			// Send a response over TCP
 			tcpAddr, err := net.ResolveTCPAddr("tcp", udpAddr.String())
